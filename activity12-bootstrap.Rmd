@@ -1,6 +1,6 @@
 ---
 title: "Activity 12"
-author: "Name"
+author: "Luke Cadagin"
 output: github_document
 ---
 
@@ -13,6 +13,11 @@ knitr::opts_chunk$set(error = TRUE)
 
 In this activity you will be bootstrapping - a form of statistical inference that uses resampling methods.
 First, you will need `{tidyverse}` and `{infer}`.
+
+```{r load packages, message = FALSE}
+library(tidyverse)
+library(infer)
+```
 
 
 ### Data
@@ -58,11 +63,21 @@ Our variable of interest for this Activity is going to be `educ` which is the nu
 Plot a histogram of `educ` with an overlaying density.
 Comment on the center, spread, and shape.
 
+```{r}
+head(gss)
+```
 
+```{r}
+gss %>% 
+  ggplot(mapping = aes(x = educ, y = ..density..)) +
+  geom_histogram() +
+  geom_density(alpha = .2)
+```
 
 
 **Response**:
 
+The center of the distribution is around 13/14.  There seems to be a bimodel distribution with a peak around 12 and another around 16.
 
 Suppose we're interested in making inference about the typical number of years of education that a person has completed and this is our representative sample.
 Is the mean a good statistic to use here to describe the typical value of salary?
@@ -70,6 +85,7 @@ Why or why not?
 
 **Response**:
 
+I would argue that the mean is not a good statistic to describe the typical value of salary as most data is distributed on either side of the mean (bimodel).
 
 Recall from your introductory statistics course that a one-sample *t*-test requires that the sample mean is Normally distributed.
 Does this assumption seem reasonable for the mean number of years of education?
@@ -77,16 +93,19 @@ Why or why not?
 
 ***Response**:
 
+I would argue that due to the CLT, a sample statistic will conform to an approximately normal distribution with a large number of samples (no matter what the distribution is of the population).  Thus, we can reasonably assume the distributio of the sample mean is normal.
 
 Since our sample size is so large, the distribution of the *sample mean* is approximately Normal (the CLT!).
 The `t.test` function can be used to do a one-sample *t*-test and to find a 90% confidence interval for the mean number of years of education that US adults complete.
 Use this function to construct a 90% confidence interval for the mean number of years of education that US adults complete.
 
-
-
+```{r}
+t.test(gss$educ, conf.level = .9)
+```
 
 **Response**:
 
+We are 90% confident that the true population education years mean falls between 13.65 and 13.83 year.
 
 ### Bootstrapping
 
@@ -123,20 +142,37 @@ Using `sample` and one of: (`replicate`, `purrr:rerun`, or `purrr::map`), genera
 Then, use the appropriate `purrr::map` function to calculate the mean for each of the bootstrap samples.
 The last thing you want is those samples to change every time you knit your document because your interpretations might be slightly different so you will need to set a seed that is your birthday in `yymmdd` format (your instructor's seed would be set to the number `851217`).
 
+```{r}
+set.seed(950123)
 
+sample_1000 <- map(1:1000, ~sample(gss_educ$educ, size = length(gss_educ$educ), replace = TRUE))
+head(sample_1000)
+```
 
+```{r}
+sample_1000_means <- map(sample_1000, ~mean(.))
+head(sample_1000_means)
+```
+
+```{r}
+sample_1000_means <- unlist(sample_1000_means)
+head(sample_1000_means)
+```
 
 
 Now, use the `quantile` function with appropriate `probs` to get construct a 90% bootstrap confidence interval for the mean number of years of education that US adults complete.
 You will need to give some thought about what the lower and upper quantiles would be to identify the middle 90%.
 
-
+```{r}
+quantile(sample_1000_means, probs = c(.05, .95))
+```
+We are 90% confident that the true population education years falls between 13.65 and 13.83 years.
 
 
 
 Compare this bootstrap interval to your `t.test` confidence interval from above.
 
-
+We see that the 90% confidence interval for both methods is almost identical.
 
 ## Challenge: Other statistics
 
