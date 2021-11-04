@@ -197,11 +197,43 @@ That is, your final dataframe would look like:
 Then, restructure this dataframe to create a faceted plot that displays histograms for each measure on center.
 You should assign this restructured dataframe to an R object to help you with the next task.
 
+```{r}
+bootstrap_sampler <- function(data, n) {
+  sample_n <- map(1:n, ~sample(data, size = length(data), replace = TRUE))
+  mean <- map(sample_n, ~mean(.))
+  median <- map(sample_n, ~median(.))
+  midhinge <- map(sample_n, ~((quantile(., probs = .25) + quantile(., probs = .75)) / 2))
+  output <- tibble(mean = unlist(mean), median = unlist(median), midhinge = unlist(midhinge))
+}
+```
 
+```{r}
+test <- bootstrap_sampler(gss_educ$educ, 1000)
+head(test)
+```
 
 
 Using this restructured dataframe, compute 90% bootstrap confidence intervals *for each* statistics.
 For each, compare to your interval to the bootstrap interval for the *mean* that you computed first. 
+
+```{r}
+bootstrap_data <- bootstrap_sampler(gss_educ$educ, 1000)
+
+```
+
+
+
+```{r}
+quantile(bootstrap_data$mean, probs = c(.05, .95))
+```
+
+```{r}
+quantile(bootstrap_data$median, probs = c(.05, .95))
+```
+
+```{r}
+quantile(bootstrap_data$midhinge, probs = c(.05, .95))
+```
 
 
 
@@ -213,6 +245,7 @@ Think about what each statistic is measuring, and decide whether that makes sens
 
 **Response**:
 
+I believe the median is the best statistic to describe the number of years of education.  This is because we are able to deterine a much more precise confidence interval (13.65, 13.82) vs (13, 14) or (14, 14).
 
 
 ## Liberals vs. Conservatives - Is science research necessary?
@@ -238,15 +271,69 @@ Since this is the spelling that shows up in the data, you need to make sure this
 
 1. Create a new variable, i.e., recode `advfront` values, such that "Strongly agree" and "Agree" are converted to `"Yes"`, and "Disagree" and "Strongly disagree" are converted to `"No"`. The remaining levels can be left as is.
 
+```{r}
+head(gss)
+```
+
+```{r}
+new_gss <- gss %>% 
+  mutate(advfront = ifelse(advfront %in% c("Strongly agree", "Agree"), "Yes", ifelse(advfront %in% c("Strongly disagree", "Disagree"), "No", advfront)))
+
+head(new_gss)
+```
+
+
 2. Create a new variable, i.e., recode `polviews values`, such that "Extremely liberal", "Liberal", and "Slightly liberal", are converted to `"Liberal"`, and "Slghtly conservative", "Conservative", and "Extrmly conservative" are converted to `"Conservative"`. The remaining levels can be left as is.
+
+```{r}
+new_gss <- new_gss %>% 
+  mutate(polviews = ifelse(polviews %in% c("Extremely liberal", "Liberal", "Slightly liberal"), "Liberal", ifelse(polviews %in% c("Extrmly conservative", "Conservative", "Slghtly conservative"), "Conservative", polviews)))
+
+head(new_gss)
+```
+
 
 3. Filter the data for respondents who self-identified as "liberal" or "conservative" and who responded "yes" or "no" to the science research question. Save the resulting data frame with a different name so that you don't overwrite the data.
 
+```{r}
+filtered_new_gss <- new_gss %>% 
+  filter(polviews %in% c("Liberal", "Conservative"), advfront %in% c("Yes", "No"))
+
+head(filtered_new_gss)
+```
+
+
 4. Describe how you will use bootstrapping to estimate the difference in proportion of liberals and not liberals who think science research is necessary and should be supported by the federal government.
+
+```{r}
+test2 <- filtered_new_gss %>% 
+  mutate(combined = paste(polviews, ",", advfront))
+```
+
+```{r}
+sample_n <- map(1:1000, ~sample(test2$combined, size = length(test2$combined), replace = TRUE))
+```
+
+```{r}
+sample_liberal_yes <- map(sample_n, ~sum(str_count(., pattern = "Liberal , Yes")))
+sample_liberal_no <- map(sample_n, ~sum(str_count(., pattern = "Liberal , No")))
+sample_conservative_yes <- map(sample_n, ~sum(str_count(., pattern = "Conservative , Yes")))
+sample_conservative_no <- map(sample_n, ~sum(str_count(., pattern = "Conservative , Yes")))
+
+difference <- (unlist(sample_liberal_yes) / (unlist(sample_liberal_yes) + unlist(sample_liberal_no))) - (unlist(sample_conservative_yes) / (unlist(sample_conservative_yes) + unlist(sample_conservative_no)))
+
+head(difference)
+```
+
 
 5. Construct a 90% bootstrap confidence interval for the difference in proportion of liberals and conservatives who think science research is necessary and should be supported by the federal government. Interpret this interval in context of the data.
 
+```{r}
+quantile(difference, probs = c(.05, .95))
+```
+p(lib) - p(con)
 
+We are 90% confident that the true population proportion of proportion differences between liberals and conservatives who support science research is between 35.68 and 41.17 percent.
 
 
 
